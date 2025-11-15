@@ -1,0 +1,12 @@
+numpy
+scipy
+librosa
+sounddevice
+torch
+torchaudio
+onnx
+onnxruntime
+scikit-learn
+matplotlib
+soundfile
+tqdm
