@@ -37,6 +37,57 @@ How can we develop a voice-controlled AI that communicates naturally with users,
 ### Approach
 The speech AI system is developed to run locally with low latency and the possibility for offline use. The Jetson Nano processes audio input, interprets spoken commands, and returns appropriate visual or audio feedback.
 
+```bash
+python src/record.py --label start_timer --n 30
+python src/record.py --label pause_timer --n 30
+python src/record.py --label room_temp --n 30
+python src/record.py --label pomodoro --n 30
+# optioneel:
+python src/record.py --label silence --n 20
+```
+
+3. Controleer je dataset
+
+Controleer of de mappen en .wav-bestanden correct zijn opgeslagen in dataset/<label>/.
+
+## Audio Preprocessing
+```bash
+python src/preprocess.py
+```
+
+Dit genereert:
+```bash
+dataset/preprocessed/<label>.npy
+```
+met log-mel spectrogram features.
+
+## Model Trainen
+Train het model vanuit de project root:
+```bash
+python src/train.py
+```
+
+Het model wordt opgeslagen als:
+```bash
+models/kws_cnn.pt
+```
+
+Let op de training loss en validation accuracy in de terminal.
+
+Opmerking:
+Met ±30 samples per label is de accuracy niet perfect, maar voor small-vocabulary command recognition vaak voldoende. Voeg meer samples of augmentatie toe om de accuracy te verbeteren.
+
+## Realtime Testen
+Start de realtime keyword spotter:
+```bash
+python src/infer.py
+```
+
+Wanneer je een commando inspreekt, verschijnt:
+```bash
+Recognized: <label> (score)
+```
+
 ## Expected Results
 The final prototype will be able to:
 - Start and manage timers  
