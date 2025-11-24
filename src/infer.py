@@ -21,7 +21,7 @@ model.eval()
 print("Model loaded. Labels:", labels)
 
 def extract_log_mel(y, sr=SAMPLE_RATE, n_mels=40, hop_length=160, n_fft=512):
-    mel = librosa.feature.melspectrogram(y, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length)
+    mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length)
     log_mel = librosa.power_to_db(mel)
     return log_mel
 

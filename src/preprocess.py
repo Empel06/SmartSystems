@@ -29,7 +29,7 @@ for label in labels:
             y = np.pad(y, (0, SAMPLES - len(y)))
         else:
             y = y[:SAMPLES]
-        mel = librosa.feature.melspectrogram(y, sr=sr, n_fft=N_FFT, hop_length=HOP_LENGTH, n_mels=N_MELS)
+        mel = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=N_FFT, hop_length=HOP_LENGTH, n_mels=N_MELS)
         log_mel = librosa.power_to_db(mel)
         arrs.append(log_mel.astype(np.float32))
     if arrs:
