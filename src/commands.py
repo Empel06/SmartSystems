@@ -1,9 +1,9 @@
 # src/commands.py
 COMMANDS = {
-    "start_timer": ["start", "begin", "activeer"],
-    "pause_timer": ["pause", "pauzeer", "stop"],
-    "work_time": ["gewerkt", "werkduur", "hoe lang"],
-    "room_temp": ["hoe warm", "temperatuur", "kamertemperatuur"],
-    "pomodoro": ["pomodoro", "focus", "sessie"]
+    "start_timer": ["start"],
+    "pause_timer": ["pause"],
+    "work_time": ["studeertijd"],
+    "room_temp": ["temperatuur"],
+    "pomodoro": ["pomodoro"]
 }
 LABELS = list(COMMANDS.keys())
