@@ -2,7 +2,7 @@
 COMMANDS = {
     "start_timer": ["start"],
     "pause_timer": ["pause"],
-    "work_time": ["studeertijd"],
+    "work_time": ["tijd"],
     "room_temp": ["temperatuur"],
     "pomodoro": ["pomodoro"]
 }
