@@ -4,6 +4,5 @@ COMMANDS = {
     "pause_timer": ["pause"],
     "work_time": ["time"],
     "room_temp": ["temperature"],
-    "pomodoro": ["pomodoro"]
 }
 LABELS = list(COMMANDS.keys())
