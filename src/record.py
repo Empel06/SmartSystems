@@ -3,8 +3,12 @@ import argparse, os
 import sounddevice as sd
 import soundfile as sf
 
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 44100  # of 48000
 DURATION = 2.0  # seconds
+
+sd.default.device = (3, None)      # input = jouw USB-mic (card 3), geen output
+sd.default.samplerate = SAMPLE_RATE
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--label", required=True, help="label folder name")
