@@ -31,7 +31,7 @@ while True:
     # ENS160-waarden uitlezen
     aq = ens.AQI              # IAQ index (0–3 of 1–5 afhankelijk van lib)
     tvoc = ens.TVOC                  # ppb
-    eco2 = ens.ECO2                  # ppm
+    eco2 = ens.eCO2                  # ppm
 
     print(f"Temp: {temp:.1f} °C  Humidity: {rh:.1f} %")
     print(f"AirQuality index: {aq}, TVOC: {tvoc} ppb, eCO2: {eco2} ppm")
