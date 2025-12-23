@@ -2,7 +2,7 @@
 Smart Voice Assistant: Timer, Temperature/Air Quality, Work Time Tracker
 Integrates keyword spotting with real-time control logic
 Uses AHT21 (temp/humidity) + ENS160 (air quality) sensors
-Includes Text-to-Speech (TTS) feedback in Dutch
+Includes Text-to-Speech (TTS) feedback in Dutch (using espeak directly)
 """
 
 import os
@@ -18,9 +18,6 @@ import numpy as np
 import librosa
 import soundfile as sf
 from scipy.special import softmax
-
-# Text-to-Speech
-import pyttsx3
 
 # Sensor imports
 try:
@@ -56,40 +53,22 @@ TVOC_WARNING_THRESHOLD = 500  # ppb
 AIR_QUALITY_CHECK_INTERVAL = 30  # Check every 30 seconds
 
 # ============================================================================
-# TEXT-TO-SPEECH INITIALIZATION
+# TEXT-TO-SPEECH (espeak direct)
 # ============================================================================
 
 class TTSEngine:
-    """Handles Text-to-Speech in Dutch"""
+    """Handles Text-to-Speech using espeak command (Dutch)"""
     
     def __init__(self):
-        try:
-            self.engine = pyttsx3.init()
-            self.engine.setProperty('rate', 150)  # Speed (words per minute)
-            self.engine.setProperty('volume', 0.9)  # Volume (0.0 to 1.0)
-            
-            # Try to set Dutch voice if available
-            voices = self.engine.getProperty('voices')
-            for voice in voices:
-                if 'dutch' in voice.languages or 'nl' in voice.languages:
-                    self.engine.setProperty('voice', voice.id)
-                    break
-            
-            self.initialized = True
-            print("TTS Engine initialized (Dutch)")
-        except Exception as e:
-            print(f"Warning: TTS initialization failed: {e}")
-            self.initialized = False
+        self.initialized = True
+        print("TTS Engine initialized (espeak Dutch)")
     
     def speak(self, text: str):
-        """Speak text asynchronously (non-blocking)"""
-        if not self.initialized:
-            return
-        
+        """Speak Dutch text asynchronously using espeak"""
         def _speak_thread():
             try:
-                self.engine.say(text)
-                self.engine.runAndWait()
+                cmd = ['espeak', '-v', 'nl', text]
+                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception as e:
                 print(f"TTS error: {e}")
         
