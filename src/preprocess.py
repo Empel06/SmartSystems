@@ -4,7 +4,7 @@ import numpy as np
 import librosa
 from tqdm import tqdm
 
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 44100
 N_MELS = 40
 HOP_LENGTH = 160
 N_FFT = 512
