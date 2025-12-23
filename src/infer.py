@@ -1,4 +1,3 @@
-# src/infer.py
 import os, time, subprocess, tempfile
 import torch
 import numpy as np
@@ -7,18 +6,21 @@ import soundfile as sf
 from scipy.special import softmax
 
 MODEL_PATH = "models/kws_cnn.pt"
-SAMPLE_RATE = 44100       # 44100 of 48000 (werkt met jouw USB mic)
+SAMPLE_RATE = 44100
 DURATION = 2.0
 SAMPLES = int(SAMPLE_RATE * DURATION)
+CONFIDENCE_THRESHOLD = 0.60  # ← Alleen accepteren als > 60% zeker
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 ckpt = torch.load(MODEL_PATH, map_location=device)
 from train import SimpleCNN
+
 labels = ckpt["labels"]
 model = SimpleCNN(in_ch=1, num_classes=len(labels)).to(device)
 model.load_state_dict(ckpt["model_state"])
 model.eval()
 print("Model loaded. Labels:", labels)
+print(f"Confidence threshold: {CONFIDENCE_THRESHOLD:.0%}\n")
 
 def extract_log_mel(y, sr=SAMPLE_RATE, n_mels=40, hop_length=160, n_fft=512):
     mel = librosa.feature.melspectrogram(
@@ -28,7 +30,6 @@ def extract_log_mel(y, sr=SAMPLE_RATE, n_mels=40, hop_length=160, n_fft=512):
     return log_mel
 
 def record_with_arecord(path):
-    # USB‑mic = card 3, device 0 (zie jouw `arecord -l`)
     cmd = [
         "arecord",
         "-D", "hw:3,0",
@@ -65,15 +66,22 @@ try:
             print("Silence... try again")
             continue
 
-        # 3) Features + inference (precies als in jouw oude code)
+        # 3) Features + inference
         feats = extract_log_mel(y)
         x = torch.tensor(feats).unsqueeze(0).unsqueeze(0).float().to(device)
+        
         with torch.no_grad():
             out = model(x)
             probs = softmax(out.cpu().numpy()[0])
             idx = int(np.argmax(probs))
             score = float(probs[idx])
             label = labels[idx]
+            
+            # Threshold check (NA inference!)
+            if score < CONFIDENCE_THRESHOLD:
+                print(f"  Uncertain (max score: {score:.2f}, threshold: {CONFIDENCE_THRESHOLD:.0%})")
+                continue
+            
             print(f"Recognized: {label} ({score:.2f})")
 
 except KeyboardInterrupt:

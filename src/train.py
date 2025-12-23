@@ -11,10 +11,10 @@ from tqdm import tqdm
 PREP_DIR = "dataset/preprocessed"
 MODEL_DIR = "models"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16
-EPOCHS = 100
-LR = 1e-3
-PATIENCE = 5
+BATCH_SIZE = 32
+EPOCHS = 150
+LR = 0.0005
+PATIENCE = 10
 
 # --- Definities (Deze moeten beschikbaar zijn voor import) ---
 
@@ -67,18 +67,29 @@ class SimpleCNN(nn.Module):
     def __init__(self, in_ch=1, num_classes=2):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(in_ch, 16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            # Block 1: 32 filters
+            nn.Conv2d(in_ch, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2),
+            
+            # Block 2: 64 filters
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            
+            # Block 3: 128 filters (NIEUW)
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            
+            # Head
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Dropout(0.3),
-            nn.Linear(32, num_classes)
+            nn.Dropout(0.4),  # Hoger (0.4) tegen overfitting
+            nn.Linear(128, num_classes)
         )
     def forward(self, x):
         return self.net(x)
@@ -105,7 +116,14 @@ if __name__ == "__main__":
 
     # 3. Model setup
     model = SimpleCNN(in_ch=1, num_classes=num_classes).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+    # Bereken gewichten op basis van counts
+    class_counts = np.bincount(ds.y)  # [280, 280, 280, 280, 280, 200]
+    weights = 1.0 / class_counts
+    weights = weights / weights.sum() # Normaliseren
+    weights_tensor = torch.tensor(weights, dtype=torch.float32).to(DEVICE)
+
+    criterion = nn.CrossEntropyLoss(weight=weights_tensor)
+
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
     # 4. Training loop
@@ -143,7 +161,27 @@ if __name__ == "__main__":
         val_acc = correct / total if total > 0 else 0
         avg_loss = running_loss / len(train_loader)
         
+        # Per-class accuracy
+        class_correct = [0] * num_classes
+        class_total = [0] * num_classes
+        model.eval()
+        with torch.no_grad():
+            for xb, yb in val_loader:
+                xb = xb.unsqueeze(1).to(DEVICE)
+                yb = yb.to(DEVICE)
+                out = model(xb)
+                preds = out.argmax(dim=1)
+                for i, label_idx in enumerate(yb):
+                    label_idx = label_idx.item()
+                    class_total[label_idx] += 1
+                    if preds[i] == label_idx:
+                        class_correct[label_idx] += 1
+        
         print(f"Epoch {epoch+1}/{EPOCHS} | Loss: {avg_loss:.4f} | Val Acc: {val_acc:.4f}")
+        for i, label in enumerate(ds.labels):
+            class_acc = class_correct[i] / class_total[i] if class_total[i] > 0 else 0
+            print(f"    {label}: {class_acc:.2%}")
+
         
         # Early Stopping
         if val_acc > best_val_acc:
