@@ -1,14 +1,15 @@
-# src/smart_assistant.py
 """
 Smart Voice Assistant: Timer, Temperature/Air Quality, Work Time Tracker
 Integrates keyword spotting with real-time control logic
 Uses AHT21 (temp/humidity) + ENS160 (air quality) sensors
+Includes Text-to-Speech (TTS) feedback in Dutch
 """
 
 import os
 import time
 import subprocess
 import tempfile
+import threading
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -17,6 +18,9 @@ import numpy as np
 import librosa
 import soundfile as sf
 from scipy.special import softmax
+
+# Text-to-Speech
+import pyttsx3
 
 # Sensor imports
 try:
@@ -50,6 +54,48 @@ TVOC_WARNING_THRESHOLD = 500  # ppb
 
 # Auto air quality check interval (seconds)
 AIR_QUALITY_CHECK_INTERVAL = 30  # Check every 30 seconds
+
+# ============================================================================
+# TEXT-TO-SPEECH INITIALIZATION
+# ============================================================================
+
+class TTSEngine:
+    """Handles Text-to-Speech in Dutch"""
+    
+    def __init__(self):
+        try:
+            self.engine = pyttsx3.init()
+            self.engine.setProperty('rate', 150)  # Speed (words per minute)
+            self.engine.setProperty('volume', 0.9)  # Volume (0.0 to 1.0)
+            
+            # Try to set Dutch voice if available
+            voices = self.engine.getProperty('voices')
+            for voice in voices:
+                if 'dutch' in voice.languages or 'nl' in voice.languages:
+                    self.engine.setProperty('voice', voice.id)
+                    break
+            
+            self.initialized = True
+            print("TTS Engine initialized (Dutch)")
+        except Exception as e:
+            print(f"Warning: TTS initialization failed: {e}")
+            self.initialized = False
+    
+    def speak(self, text: str):
+        """Speak text asynchronously (non-blocking)"""
+        if not self.initialized:
+            return
+        
+        def _speak_thread():
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                print(f"TTS error: {e}")
+        
+        # Run in background thread to not block
+        thread = threading.Thread(target=_speak_thread, daemon=True)
+        thread.start()
 
 # ============================================================================
 # SENSOR INITIALIZATION
@@ -126,6 +172,7 @@ class SmartAssistant:
         self.model = None
         self.labels = None
         self.sensors = SensorManager()
+        self.tts = TTSEngine()
         self.load_model()
         
         # Timer state
@@ -277,6 +324,7 @@ class SmartAssistant:
         self.timer_finished = False
         
         print(f"Timer started: 50:00 (Pomodoro mode)")
+        self.tts.speak("Timer is gestart. Vijftig minuten.")
         self._play_sound("start")
     
     def resume_timer(self):
@@ -290,6 +338,7 @@ class SmartAssistant:
         self.timer_pause_time = None
         self.timer_state = TimerState.RUNNING
         print("Timer resumed")
+        self.tts.speak("Timer is hervat.")
     
     def pause_timer(self):
         """Pause the timer"""
@@ -301,6 +350,7 @@ class SmartAssistant:
             self.timer_pause_time = time.time()
             self.timer_state = TimerState.PAUSED
             print("Timer paused")
+            self.tts.speak("Timer staat op pauze.")
         elif self.timer_state == TimerState.PAUSED:
             print("Timer already paused")
     
@@ -355,6 +405,7 @@ class SmartAssistant:
                 print("\n" + "="*60)
                 print("TIMER FINISHED! 50 minutes completed!")
                 self.announce_work_time()
+                self.tts.speak("Timer afgelopen. Goed werk gedaan!")
                 print("="*60)
                 self._play_sound("finish")
     
@@ -396,6 +447,7 @@ class SmartAssistant:
                 print(f"AQI: {aqi} | TVOC: {tvoc} ppb")
                 print("Open a window or turn on ventilation!")
                 print("!"*60 + "\n")
+                self.tts.speak("Waarschuwing: Luchtkwaliteit is slecht. Zet een raam open of zet de ventilatie aan.")
                 self._play_sound("start")
                 self.last_air_quality_warning = True
         else:
@@ -407,6 +459,7 @@ class SmartAssistant:
         
         if temp is None:
             print("Could not read sensors")
+            self.tts.speak("Kon sensoren niet uitlezen.")
             return
         
         print(f"\nTemperature: {temp:.1f}C")
@@ -414,14 +467,21 @@ class SmartAssistant:
         print(f"Air Quality Index: {aqi}")
         print(f"TVOC: {tvoc} ppb  |  eCO2: {eco2} ppm")
         
+        # Prepare TTS message
+        temp_text = f"Kamertemperatuur: {temp:.1f} graden Celsius. Luchtvochtigheid: {humidity:.1f} procent."
+        
         # Check if ventilation needed
         if aqi >= 3 or tvoc >= TVOC_WARNING_THRESHOLD:
             print("\nWARNING: Air quality is poor!")
             print("   Open a window or turn on ventilation")
+            temp_text += " Waarschuwing: Luchtkwaliteit is slecht. Zet een raam open!"
             self._play_sound("start")
         else:
             print("Air quality is good")
+            temp_text += " Luchtkwaliteit is goed."
+        
         print()
+        self.tts.speak(temp_text)
     
     # ========================================================================
     # WORK TIME TRACKING (ACCUMULATES)
@@ -461,6 +521,21 @@ class SmartAssistant:
         display = self.get_total_work_time_display()
         print(display)
     
+    def get_work_time_for_tts(self) -> str:
+        """Get work time in Dutch text format"""
+        current_session = self.get_current_session_time()
+        total = self.total_work_time + current_session
+        
+        hours, remainder = divmod(total, 3600)
+        mins, secs = divmod(remainder, 60)
+        
+        if hours > 0:
+            return f"{hours} uur, {mins} minuten, {secs} seconden"
+        elif mins > 0:
+            return f"{mins} minuten, {secs} seconden"
+        else:
+            return f"{secs} seconden"
+    
     def end_work_session(self):
         """End current session (called when timer finishes)"""
         if self.session_start_time is None:
@@ -491,6 +566,9 @@ class SmartAssistant:
             self.announce_environment()
         
         elif label == "work_timer":
+            work_time_text = self.get_work_time_for_tts()
+            print(f"Work time: {work_time_text}")
+            self.tts.speak(f"Je hebt gewerkt voor {work_time_text}")
             self.announce_work_time()
         
         elif label == "silence":
