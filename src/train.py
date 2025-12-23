@@ -23,15 +23,37 @@ class KwsDataset(Dataset):
         self.x = []
         self.y = []
         self.labels = []
-        for i, file in enumerate(sorted(glob.glob(os.path.join(prep_dir, "*.npy")))):
+        
+        expected_shape = None
+        files = sorted(glob.glob(os.path.join(prep_dir, "*.npy")))
+        
+        for i, file in enumerate(files):
             label = os.path.splitext(os.path.basename(file))[0]
             self.labels.append(label)
             arr = np.load(file)  # (N, n_mels, frames)
+            
+            if expected_shape is None:
+                expected_shape = arr[0].shape
+                print(f"Expected shape per spectrogram: {expected_shape}")
+            
             for a in arr:
+                if a.shape != expected_shape:
+                    if a.shape[0] == expected_shape[0]:  # n_mels matches
+                        frames_expected = expected_shape[1]
+                        frames_actual = a.shape[1]
+                        
+                        if frames_actual < frames_expected:
+                            a = np.pad(a, ((0,0), (0, frames_expected - frames_actual)))
+                        else:
+                            a = a[:, :frames_expected]
+                
                 self.x.append(a)
                 self.y.append(i)
+        
         self.x = np.array(self.x)
         self.y = np.array(self.y)
+        
+        print(f"Loaded {len(self.x)} samples with shape {self.x.shape}")
     def __len__(self):
         return len(self.x)
     def __getitem__(self, idx):
