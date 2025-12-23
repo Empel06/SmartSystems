@@ -39,7 +39,7 @@ from train import SimpleCNN
 MODEL_PATH = "models/kws_cnn.pt"
 SAMPLE_RATE = 44100
 DURATION = 2.0
-CONFIDENCE_THRESHOLD = 0.70
+CONFIDENCE_THRESHOLD = 0.40
 
 # Timer
 TIMER_DURATION = 50 * 60  # 50 minutes in seconds (Pomodoro)
@@ -479,17 +479,18 @@ class SmartAssistant:
         """Execute action based on recognized command"""
         print(f"Recognized: {label} ({score:.2f})")
         
-        if label == "start":
+        # Map model labels to actions
+        if label == "start_timer":
             self.start_work_session()
             self.start_timer()
         
-        elif label == "pauze":
+        elif label == "pause_timer":
             self.pause_timer()
         
         elif label == "room_temp":
             self.announce_environment()
         
-        elif label == "work_time":
+        elif label == "work_timer":
             self.announce_work_time()
         
         elif label == "silence":
@@ -504,10 +505,10 @@ class SmartAssistant:
         print("Smart Voice Assistant Started")
         print("="*60)
         print("Commands:")
-        print("  'start'      - Start or resume 50-minute timer")
-        print("  'pauze'      - Pause timer")
-        print("  'room_temp'  - Check temperature & air quality")
-        print("  'work_time'  - Show total work time")
+        print("  'start_timer'  - Start or resume 50-minute timer")
+        print("  'pause_timer'  - Pause timer")
+        print("  'room_temp'    - Check temperature & air quality")
+        print("  'work_timer'   - Show total work time")
         print("\nAir quality is checked automatically every 30 seconds")
         print("Press CTRL+C to stop\n")
         
