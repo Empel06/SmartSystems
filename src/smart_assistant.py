@@ -3,6 +3,7 @@ Smart Voice Assistant: Timer, Temperature/Air Quality, Work Time Tracker
 Integrates keyword spotting with real-time control logic
 Uses AHT21 (temp/humidity) + ENS160 (air quality) sensors
 Includes Text-to-Speech (TTS) feedback in Dutch (using espeak directly)
+Fixed: TTS is now synchronous with delay to prevent overlapping speech
 """
 
 import os
@@ -53,7 +54,7 @@ TVOC_WARNING_THRESHOLD = 500  # ppb
 AIR_QUALITY_CHECK_INTERVAL = 30  # Check every 30 seconds
 
 # ============================================================================
-# TEXT-TO-SPEECH (espeak direct)
+# TEXT-TO-SPEECH (espeak direct, synchronous)
 # ============================================================================
 
 class TTSEngine:
@@ -61,20 +62,17 @@ class TTSEngine:
     
     def __init__(self):
         self.initialized = True
-        print("TTS Engine initialized (espeak Dutch)")
+        print("TTS Engine initialized (espeak Dutch, synchronous)")
     
     def speak(self, text: str):
-        """Speak Dutch text asynchronously using espeak"""
-        def _speak_thread():
-            try:
-                cmd = ['espeak', '-v', 'nl', text]
-                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception as e:
-                print(f"TTS error: {e}")
-        
-        # Run in background thread to not block
-        thread = threading.Thread(target=_speak_thread, daemon=True)
-        thread.start()
+        """Speak Dutch text synchronously using espeak with delay"""
+        try:
+            cmd = ['espeak', '-v', 'nl', text]
+            subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Extra delay after speaking to ensure it finishes completely
+            time.sleep(0.8)
+        except Exception as e:
+            print(f"TTS error: {e}")
 
 # ============================================================================
 # SENSOR INITIALIZATION
